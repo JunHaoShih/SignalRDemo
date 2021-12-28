@@ -4,6 +4,9 @@ using System.Text;
 
 namespace DataAccessLib.SignalR
 {
+    /// <summary>
+    /// 由於SignalR是client與server互相invoke對方的method，因此此class紀錄client端的method名稱，統一控管
+    /// </summary>
     public class HubClient
     {
         /// <summary>
