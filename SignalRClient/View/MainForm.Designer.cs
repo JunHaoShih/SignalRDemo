@@ -1,5 +1,5 @@
 ﻿
-namespace SignalRClient
+namespace SignalRClient.View
 {
     partial class MainForm
     {

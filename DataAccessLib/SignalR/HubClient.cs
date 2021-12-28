@@ -4,7 +4,7 @@ using System.Text;
 
 namespace DataAccessLib.SignalR
 {
-    public class HubData
+    public class HubClient
     {
         /// <summary>
         /// 客戶端接收訊息的method名稱
@@ -30,15 +30,5 @@ namespace DataAccessLib.SignalR
         /// 客戶端接收Topic訊息的method名稱
         /// </summary>
         public const string ReceiveTopicMessage = "ReceiveTopicMessage";
-
-        public const string Login = "Login";
-
-        public const string ClientOnErrorMethod = "OnError";
-
-        public const string ClientOnDisconnectMethod = "OnDisconnect";
-
-        public const string Subscribe = "Subscribe";
-
-        public const string SendTopicMessage = "SendTopicMessage";
     }
 }

@@ -12,15 +12,18 @@ using System.Windows.Forms;
 
 namespace SignalRClient.Presenter
 {
-    public class MainPresenter
+    public class MainPresenter : IMainPresenter
     {
         private ISignalRClientHandler handler;
 
-        private readonly MainForm view;
+        private readonly IMainForm view;
 
-        public MainPresenter(MainForm form)
+        private readonly SignalRClientHandlerBuilder builder;
+
+        public MainPresenter(IMainForm form, SignalRClientHandlerBuilder builder)
         {
             view = form;
+            this.builder = builder;
             SetEventLinks();
         }
 
@@ -82,8 +85,8 @@ namespace SignalRClient.Presenter
                 }
 
                 string url = $"{protocol}://{ip}:{port}/{path}";
-                SignalRClientHandlerBuilder builder = new SignalRClientHandlerBuilder();
                 handler = builder
+                    .New()
                     .WithUrl(url)
                     .WithUserIdentity(userNameObj, passwordObj)
                     .WithOnDisconnectDelegate(OnClientDisconnected)
@@ -111,7 +114,6 @@ namespace SignalRClient.Presenter
         private void OnPublish(HttpStatusCode statusCode, string message)
         {
             MessageBox.Show($"發生錯誤{Environment.NewLine}{message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
-            //throw new NotImplementedException();
         }
 
         private void OnSubscribe(HttpStatusCode statusCode, string message)
@@ -180,6 +182,11 @@ namespace SignalRClient.Presenter
             {
                 OnError(message);
             }
+        }
+
+        public Form GetForm()
+        {
+            return (Form)view;
         }
     }
 }

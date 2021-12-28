@@ -1,7 +1,6 @@
 ﻿using DataAccessLib.Models;
 using DataAccessLib.Models.DataTypes;
 using SignalRClient.Enumerations;
-using SignalRClient.View;
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
@@ -10,9 +9,9 @@ using System.Drawing;
 using System.Text;
 using System.Windows.Forms;
 
-namespace SignalRClient
+namespace SignalRClient.View
 {
-    public partial class MainForm : Form
+    public partial class MainForm : Form, IMainForm
     {
         /// <summary>
         /// 連線按鈕click事件

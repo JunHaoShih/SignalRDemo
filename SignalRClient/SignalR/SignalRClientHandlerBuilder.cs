@@ -14,7 +14,13 @@ namespace SignalRClient.SignalR
 {
     public class SignalRClientHandlerBuilder
     {
-        private SignalRClientHandler2 client = new SignalRClientHandler2();
+        private SignalRClientHandler client = new SignalRClientHandler();
+
+        public SignalRClientHandlerBuilder New()
+        {
+            client = new SignalRClientHandler();
+            return this;
+        }
 
         /// <summary>
         /// 設定目標server的url
@@ -126,7 +132,7 @@ namespace SignalRClient.SignalR
             return client;
         }
 
-        private class SignalRClientHandler2 : ISignalRClientHandler
+        private class SignalRClientHandler : ISignalRClientHandler
         {
 
             public UserName UserName { get; set; }
@@ -149,7 +155,7 @@ namespace SignalRClient.SignalR
 
             public bool AllowHttp { get; set; } = false;
 
-            public SignalRClientHandler2() { }
+            public SignalRClientHandler() { }
 
             private HubConnection connection = null;
 
@@ -160,16 +166,16 @@ namespace SignalRClient.SignalR
                     .WithAutomaticReconnect()
                     .Build();
 
-                connection.On<HttpStatusCode, string>(HubData.LoginResult, (httpStatus, message) => OnLogin(httpStatus, message));
-                connection.On<HttpStatusCode, string>(HubData.SubscribeResult, (httpStatus, message) => OnSubscribe(httpStatus, message));
-                connection.On<HttpStatusCode, string>(HubData.SendTopicMessageResult, (httpStatus, message) => OnPublish(httpStatus, message));
-                connection.On<string, string, string>(HubData.ReceiveTopicMessage, (user, topic, message) => ReceiveTopicMessage(user, topic, message));
+                connection.On<HttpStatusCode, string>(HubClient.LoginResult, (httpStatus, message) => OnLogin(httpStatus, message));
+                connection.On<HttpStatusCode, string>(HubClient.SubscribeResult, (httpStatus, message) => OnSubscribe(httpStatus, message));
+                connection.On<HttpStatusCode, string>(HubClient.SendTopicMessageResult, (httpStatus, message) => OnPublish(httpStatus, message));
+                connection.On<string, string, string>(HubClient.ReceiveTopicMessage, (user, topic, message) => ReceiveTopicMessage(user, topic, message));
                 connection.Closed += OnDisconnect;
 
                 try
                 {
                     await connection.StartAsync();
-                    await connection.InvokeAsync(HubData.Login, UserName.ToString(), Password.ToString());
+                    await connection.InvokeAsync(HubServer.Login, UserName.ToString(), Password.ToString());
                 }
                 catch (Exception e)
                 {
@@ -193,7 +199,7 @@ namespace SignalRClient.SignalR
             {
                 try
                 {
-                    await connection.InvokeAsync(HubData.Subscribe, UserName.ToString(), topic.ToString());
+                    await connection.InvokeAsync(HubServer.Subscribe, UserName.ToString(), topic.ToString());
                 }
                 catch (Exception e)
                 {
@@ -205,7 +211,7 @@ namespace SignalRClient.SignalR
             {
                 try
                 {
-                    await connection.InvokeAsync(HubData.SendTopicMessage, UserName.ToString(), topic.ToString(), chatText.ToString());
+                    await connection.InvokeAsync(HubServer.SendTopicMessage, UserName.ToString(), topic.ToString(), chatText.ToString());
                 }
                 catch (Exception e)
                 {

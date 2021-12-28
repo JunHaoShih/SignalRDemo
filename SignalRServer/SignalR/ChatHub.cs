@@ -32,7 +32,7 @@ namespace SignalRServer.SignalR
 
         public async Task SendMessage(string user, string message)
         {
-            await Clients.All.SendAsync(HubData.ReceiveMessage, user, message);
+            await Clients.All.SendAsync(HubClient.ReceiveMessage, user, message);
 
         }
 
@@ -41,28 +41,28 @@ namespace SignalRServer.SignalR
             var isValid = UserName.TryParse(user, out UserName userName);
             if (!isValid)
             {
-                await Clients.Client(Context.ConnectionId).SendAsync(HubData.SendTopicMessageResult, HttpStatusCode.BadRequest, "非法使用者名稱");
+                await Clients.Client(Context.ConnectionId).SendAsync(HubClient.SendTopicMessageResult, HttpStatusCode.BadRequest, "非法使用者名稱");
                 return;
             }
 
             isValid = Topic.TryParse(topic, out Topic topicObj);
             if (!isValid)
             {
-                await Clients.Client(Context.ConnectionId).SendAsync(HubData.SendTopicMessageResult, HttpStatusCode.BadRequest, "非法Topic名稱");
+                await Clients.Client(Context.ConnectionId).SendAsync(HubClient.SendTopicMessageResult, HttpStatusCode.BadRequest, "非法Topic名稱");
                 return;
             }
 
             isValid = ChatText.TryParse(message, out ChatText chatText);
             if (!isValid)
             {
-                await Clients.Client(Context.ConnectionId).SendAsync(HubData.SendTopicMessageResult, HttpStatusCode.BadRequest, "非法訊息");
+                await Clients.Client(Context.ConnectionId).SendAsync(HubClient.SendTopicMessageResult, HttpStatusCode.BadRequest, "非法訊息");
                 return;
             }
 
             ChatRoomMessage chatRoomMessage = new ChatRoomMessage() { UserName = userName, Topic = topicObj, ChatMessage = chatText };
             chatRoomMessage = chatRoomMessageDao.InsertChatRoomMessage(chatRoomMessage);
 
-            await Clients.Group(topicObj.ToString()).SendAsync(HubData.ReceiveTopicMessage, userName.ToString(), topicObj.ToString(), chatText.ToString());
+            await Clients.Group(topicObj.ToString()).SendAsync(HubClient.ReceiveTopicMessage, userName.ToString(), topicObj.ToString(), chatText.ToString());
 
         }
 
@@ -71,21 +71,21 @@ namespace SignalRServer.SignalR
             var isValid = UserName.TryParse(user, out UserName userName);
             if (!isValid)
             {
-                await Clients.Client(Context.ConnectionId).SendAsync(HubData.SubscribeResult, HttpStatusCode.BadRequest, "非法使用者名稱");
+                await Clients.Client(Context.ConnectionId).SendAsync(HubClient.SubscribeResult, HttpStatusCode.BadRequest, "非法使用者名稱");
                 return;
             }
 
             isValid = Topic.TryParse(topic, out Topic topicObj);
             if (!isValid)
             {
-                await Clients.Client(Context.ConnectionId).SendAsync(HubData.SubscribeResult, HttpStatusCode.BadRequest, "非法Topic名稱");
+                await Clients.Client(Context.ConnectionId).SendAsync(HubClient.SubscribeResult, HttpStatusCode.BadRequest, "非法Topic名稱");
                 return;
             }
 
             var chatUser = chatUserDao.GetChatUser(userName);
             if (chatUser == null)
             {
-                await Clients.Client(Context.ConnectionId).SendAsync(HubData.SubscribeResult, HttpStatusCode.BadRequest, "使用者「" + userName + "」不存在!");
+                await Clients.Client(Context.ConnectionId).SendAsync(HubClient.SubscribeResult, HttpStatusCode.BadRequest, "使用者「" + userName + "」不存在!");
                 return;
             }
 
@@ -103,7 +103,9 @@ namespace SignalRServer.SignalR
 
             await Groups.AddToGroupAsync(Context.ConnectionId, topic);
 
-            await Clients.Client(Context.ConnectionId).SendAsync(HubData.SubscribeResult, HttpStatusCode.OK, topic);
+            await Clients.Client(Context.ConnectionId).SendAsync(HubClient.SubscribeResult, HttpStatusCode.OK, topic);
+
+            SendSystemMessage(topicObj, $"使用者「{userName}」加入聊天室");
         }
 
         public async Task Login(string user, string password)
@@ -111,14 +113,14 @@ namespace SignalRServer.SignalR
             var isValid = UserName.TryParse(user, out UserName userName);
             if (!isValid)
             {
-                await Clients.Client(Context.ConnectionId).SendAsync(HubData.LoginResult, HttpStatusCode.BadRequest, "非法使用者名稱");
+                await Clients.Client(Context.ConnectionId).SendAsync(HubClient.LoginResult, HttpStatusCode.BadRequest, "非法使用者名稱");
                 return;
             }
 
             isValid = Password.TryParse(password, out Password passwordObj);
             if (!isValid)
             {
-                await Clients.Client(Context.ConnectionId).SendAsync(HubData.LoginResult, HttpStatusCode.BadRequest, "非法密碼");
+                await Clients.Client(Context.ConnectionId).SendAsync(HubClient.LoginResult, HttpStatusCode.BadRequest, "非法密碼");
                 return;
             }
 
@@ -132,7 +134,7 @@ namespace SignalRServer.SignalR
             {
                 if (chatUser.Password != password)
                 {
-                    await Clients.Client(Context.ConnectionId).SendAsync(HubData.LoginResult, HttpStatusCode.BadRequest, "密碼不正確");
+                    await Clients.Client(Context.ConnectionId).SendAsync(HubClient.LoginResult, HttpStatusCode.BadRequest, "密碼不正確");
                     return;
                 }
             }
@@ -143,7 +145,7 @@ namespace SignalRServer.SignalR
             var claimsIdentity = new ClaimsIdentity(Context.User.Identity, claims);
             Context.User.AddIdentity(claimsIdentity);
 
-            await Clients.Client(Context.ConnectionId).SendAsync(HubData.LoginResult, HttpStatusCode.OK, "登入成功");
+            await Clients.Client(Context.ConnectionId).SendAsync(HubClient.LoginResult, HttpStatusCode.OK, "登入成功");
         }
 
         public override Task OnDisconnectedAsync(Exception exception)
@@ -157,7 +159,10 @@ namespace SignalRServer.SignalR
 
                 foreach (var participant in participants)
                 {
-                    Groups.RemoveFromGroupAsync(Context.ConnectionId, participant.ChatRoom.Topic);
+                    var topicObj = participant.ChatRoom.Topic;
+                    Groups.RemoveFromGroupAsync(Context.ConnectionId, topicObj);
+
+                    SendSystemMessage(topicObj, $"使用者「{userName}」離開聊天室");
                 }
                 //Clients.Client(Context.ConnectionId).SendAsync(HubData.ClientOnDisconnectMethod, "離線成功");
             }
@@ -168,6 +173,13 @@ namespace SignalRServer.SignalR
         public override Task OnConnectedAsync()
         {
             return base.OnConnectedAsync();
+        }
+
+        private void SendSystemMessage(Topic topic, string chatMessage)
+        {
+            var systemUser = new UserName("System");
+            var chatText = new ChatText(chatMessage);
+            Clients.Group(topic.ToString()).SendAsync(HubClient.ReceiveTopicMessage, systemUser.ToString(), topic.ToString(), chatText.ToString());
         }
     }
 }

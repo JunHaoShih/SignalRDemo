@@ -1,4 +1,7 @@
+using Autofac;
 using SignalRClient.Presenter;
+using SignalRClient.SignalR;
+using SignalRClient.View;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -18,9 +21,20 @@ namespace SignalRClient
             Application.SetHighDpiMode(HighDpiMode.SystemAware);
             Application.EnableVisualStyles();
             Application.SetCompatibleTextRenderingDefault(false);
-            var view = new MainForm();
-            _ = new MainPresenter(view);
-            Application.Run(view);
+
+            var mainPresenter = CompositionRoot().Resolve<IMainPresenter>();
+
+            Application.Run(mainPresenter.GetForm());
+        }
+
+        private static IContainer CompositionRoot()
+        {
+            var builder = new ContainerBuilder();
+            builder.RegisterType<MainForm>().As<IMainForm>();
+            builder.RegisterType<MainPresenter>().As<IMainPresenter>();
+            builder.RegisterType<SignalRClientHandlerBuilder>();
+
+            return builder.Build();
         }
     }
 }
