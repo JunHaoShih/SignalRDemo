@@ -10,42 +10,40 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 
-namespace SignalRClient.Presenter
+namespace SignalRClient.Service
 {
-    public class MainPresenter : IMainPresenter
+    public class SignalRService : ISignalRService
     {
         private ISignalRClientHandler handler;
 
-        private readonly IMainForm view;
+        private MainForm mainForm;
 
-        private readonly SignalRClientHandlerBuilder builder;
+        private SignalRClientHandlerBuilder builder;
 
-        public MainPresenter(IMainForm form, SignalRClientHandlerBuilder builder)
+        public SignalRService(MainForm mainForm, SignalRClientHandlerBuilder builder)
         {
-            view = form;
+            this.mainForm = mainForm;
             this.builder = builder;
-            SetEventLinks();
         }
 
         /// <summary>
-        /// 與MainForm的事件做連結
+        /// 連線到SignalR server
         /// </summary>
-        private void SetEventLinks()
-        {
-            // 將MainForm的連線按鈕click事件與ConnectToSignalRServer連結
-            view.OnConnectionClicked += ConnectToSignalRServer;
-            // 將MainForm的登出按鈕click事件與DisconnectFromSignalRerver連結
-            view.OnDisconnectClicked += DisconnectFromSignalRServer;
-            // 將MainForm的加入聊天室按鈕click事件與OpenJoinChatDialog連結
-            view.OnJoinChatClicked += OpenJoinChatDialog;
-        }
-
-        private void ConnectToSignalRServer(SignalRProtocol protocol, string path, string ip, int port, string user, string password)
+        /// <param name="protocol"></param>
+        /// <param name="path"></param>
+        /// <param name="ip"></param>
+        /// <param name="port"></param>
+        /// <param name="user"></param>
+        /// <param name="password"></param>
+        public void ConnectToSignalRServer(SignalRProtocol protocol, string path, string ip, int port, string user, string password)
         {
             _ = ConnectAsync(protocol, path, ip, port, user, password);
         }
 
-        private void DisconnectFromSignalRServer(object sender, EventArgs e)
+        /// <summary>
+        /// 與SignalR server中斷連線
+        /// </summary>
+        public void DisconnectFromSignalRServer()
         {
             if (handler != null)
             {
@@ -53,18 +51,14 @@ namespace SignalRClient.Presenter
             }
         }
 
-        private void OpenJoinChatDialog(object sender, EventArgs e)
+        /// <summary>
+        /// 加入聊天室
+        /// </summary>
+        /// <param name="topic">聊天室名稱</param>
+        public void JoinChat(Topic topic)
         {
-            using (var joinChatDialog = new JoinChatDialog())
-            {
-                // 開啟對話框並取得DialogResult
-                var dialogResult = joinChatDialog.ShowDialog();
-                if (dialogResult == System.Windows.Forms.DialogResult.OK)
-                {
-                    // 訂閱對話框輸入的Topic
-                    _ = handler.SubscribeAsync(joinChatDialog.Topic);
-                }
-            }
+            // 訂閱對話框輸入的Topic
+            _ = handler.SubscribeAsync(topic);
         }
 
         private async Task ConnectAsync(SignalRProtocol protocol, string path, string ip, int port, string user, string password)
@@ -107,8 +101,8 @@ namespace SignalRClient.Presenter
             isValid = Topic.TryParse(topic, out Topic topicObj);
             isValid = ChatText.TryParse(message, out ChatText chatText);
             ChatRoomMessage chatRoomMessage = new ChatRoomMessage() { UserName = userName, Topic = topicObj, ChatMessage = chatText };
-            view.TryAddChatTabPage(topicObj, out ChatControl chatControl);
-            view.AppendTopicMessage(topicObj, chatRoomMessage);
+            mainForm.TryAddChatTabPage(topicObj, out ChatControl chatControl);
+            mainForm.AppendTopicMessage(topicObj, chatRoomMessage);
         }
 
         private void OnPublish(HttpStatusCode statusCode, string message)
@@ -121,7 +115,7 @@ namespace SignalRClient.Presenter
             if (statusCode == HttpStatusCode.OK)
             {
                 // 嘗試為該Topic新增TabPage
-                var IsAdded = view.TryAddChatTabPage(new Topic(message), out ChatControl chatControl);
+                var IsAdded = mainForm.TryAddChatTabPage(new Topic(message), out ChatControl chatControl);
                 // 若有新增，則把回傳的ChatControl的發送按鈕click事件與ChatControlPublish連結
                 if (IsAdded)
                 {
@@ -148,12 +142,12 @@ namespace SignalRClient.Presenter
         private Task OnClientDisconnected(Exception e)
         {
             // 將連線的UI給enable
-            view.EnableConnectionUI(true);
+            mainForm.EnableConnectionUI(true);
             // 將聊天的UI給disable
-            view.EnablePanelCenter(false);
+            mainForm.EnablePanelCenter(false);
             // 清除聊天的tabpage與dictionary
-            view.ClearAllTopics();
-            
+            mainForm.ClearAllTopics();
+
             handler = null;
 
             return null;
@@ -174,19 +168,14 @@ namespace SignalRClient.Presenter
             if (statusCode == HttpStatusCode.OK)
             {
                 // 將連線的UI給disable
-                view.EnableConnectionUI(false);
+                mainForm.EnableConnectionUI(false);
                 // 將聊天的UI給enable
-                view.EnablePanelCenter(true);
+                mainForm.EnablePanelCenter(true);
             }
             else
             {
                 OnError(message);
             }
-        }
-
-        public Form GetForm()
-        {
-            return (Form)view;
         }
     }
 }

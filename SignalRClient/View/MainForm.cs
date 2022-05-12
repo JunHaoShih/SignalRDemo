@@ -1,6 +1,7 @@
 ﻿using DataAccessLib.Models;
 using DataAccessLib.Models.DataTypes;
 using SignalRClient.Enumerations;
+using SignalRClient.Service;
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
@@ -11,22 +12,9 @@ using System.Windows.Forms;
 
 namespace SignalRClient.View
 {
-    public partial class MainForm : Form, IMainForm
+    public partial class MainForm : Form
     {
-        /// <summary>
-        /// 連線按鈕click事件
-        /// </summary>
-        public event Action<SignalRProtocol, string, string, int, string, string> OnConnectionClicked;
-
-        /// <summary>
-        /// 登出按鈕click事件
-        /// </summary>
-        public event EventHandler OnDisconnectClicked;
-
-        /// <summary>
-        /// 加入聊天室click事件
-        /// </summary>
-        public event EventHandler OnJoinChatClicked;
+        public ISignalRService SignalRService { get; set; }
 
         /// <summary>
         /// 紀錄topic與其對應之ChatControl
@@ -128,17 +116,28 @@ namespace SignalRClient.View
         private void btnConnect_Click(object sender, EventArgs e)
         {
             SignalRProtocol protocol = (SignalRProtocol)cbProtocol.SelectedItem;
-            OnConnectionClicked.Invoke(protocol, tbPath.Text, tbIp.Text, ((int)nudPort.Value), tbUserName.Text, tbPassword.Text);
+            //OnConnectionClicked.Invoke(protocol, tbPath.Text, tbIp.Text, ((int)nudPort.Value), tbUserName.Text, tbPassword.Text);
+            SignalRService.ConnectToSignalRServer(protocol, tbPath.Text, tbIp.Text, ((int)nudPort.Value), tbUserName.Text, tbPassword.Text);
         }
 
         private void btnDisconnect_Click(object sender, EventArgs e)
         {
-            OnDisconnectClicked.Invoke(sender, e);
+            //OnDisconnectClicked.Invoke(sender, e);
+            SignalRService.DisconnectFromSignalRServer();
         }
 
         private void btnJoinChat_Click(object sender, EventArgs e)
         {
-            OnJoinChatClicked.Invoke(sender, e);
+            using (var joinChatDialog = new JoinChatDialog())
+            {
+                // 開啟對話框並取得DialogResult
+                var dialogResult = joinChatDialog.ShowDialog();
+                if (dialogResult == System.Windows.Forms.DialogResult.OK)
+                {
+                    // 訂閱對話框輸入的Topic
+                    SignalRService.JoinChat(joinChatDialog.Topic);
+                }
+            }
         }
 
         private void tbIp_KeyPress(object sender, KeyPressEventArgs e)
@@ -147,6 +146,22 @@ namespace SignalRClient.View
             {
                 btnConnect.PerformClick();
             }
+        }
+
+        private void tbIp_TextChanged(object sender, EventArgs e)
+        {
+            HandleUrlDisplay();
+        }
+
+        private void cbProtocol_SelectedIndexChanged(object sender, EventArgs e)
+        {
+            HandleUrlDisplay();
+        }
+
+        private void HandleUrlDisplay()
+        {
+            var protocol = (SignalRProtocol)cbProtocol.SelectedItem;
+            lblUrlDisplay.Text = $"{protocol}://{tbIp.Text}:{nudPort.Value}/{tbPath.Text}";
         }
     }
 }

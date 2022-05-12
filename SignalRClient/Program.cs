@@ -1,5 +1,5 @@
 using Autofac;
-using SignalRClient.Presenter;
+using SignalRClient.Service;
 using SignalRClient.SignalR;
 using SignalRClient.View;
 using System;
@@ -22,16 +22,14 @@ namespace SignalRClient
             Application.EnableVisualStyles();
             Application.SetCompatibleTextRenderingDefault(false);
 
-            var mainPresenter = CompositionRoot().Resolve<IMainPresenter>();
-
-            Application.Run(mainPresenter.GetForm());
+            Application.Run(CompositionRoot().Resolve<MainForm>());
         }
 
         private static IContainer CompositionRoot()
         {
             var builder = new ContainerBuilder();
-            builder.RegisterType<MainForm>().As<IMainForm>();
-            builder.RegisterType<MainPresenter>().As<IMainPresenter>();
+            builder.RegisterType<MainForm>().InstancePerLifetimeScope().PropertiesAutowired(PropertyWiringOptions.AllowCircularDependencies);
+            builder.RegisterType<SignalRService>().As<ISignalRService>().InstancePerLifetimeScope();
             builder.RegisterType<SignalRClientHandlerBuilder>();
 
             return builder.Build();
